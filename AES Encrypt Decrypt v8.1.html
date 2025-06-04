@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>AES加密解密</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="js/crypto-js.min.js"></script>
+    <script src="js/qrcode.min.js"></script>
+    <script>
+        let passwordValidationEnabled = true; // Track if password validation (confirm password) is enabled
+
+        function checkPassword() {
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirm-password').value;
+            const buttons = document.querySelectorAll('.buttons button');
+            const errorMsg = document.getElementById('password-error');
+            const decryptErrorMsg = document.getElementById('decrypt-error');
+
+            // If password validation is enabled, we need to check both passwords
+            if (passwordValidationEnabled) {
+                if (password && confirmPassword && password === confirmPassword) {
+                    buttons.forEach(button => button.disabled = false); // Enable buttons
+                    errorMsg.innerText = '';
+                    decryptErrorMsg.innerText = '';
+                } else {
+                    buttons.forEach(button => button.disabled = true); // Disable buttons
+                    if (password && confirmPassword && password !== confirmPassword) {
+                        errorMsg.innerText = '密码不一致';
+                    } else if (!password || !confirmPassword) {
+                        errorMsg.innerText = '密码不能为空';
+                    }
+                }
+            } else {
+                // If password validation is disabled, just check if the password is filled
+                if (password) {
+                    buttons.forEach(button => button.disabled = false); // Enable buttons
+                    errorMsg.innerText = '';
+                    decryptErrorMsg.innerText = '';
+                } else {
+                    buttons.forEach(button => button.disabled = true); // Disable buttons
+                    errorMsg.innerText = '';
+                }
+            }
+        }
+
+        function togglePasswordVisibility(inputId, iconId) {
+            const passwordInput = document.getElementById(inputId);
+            const eyeIcon = document.getElementById(iconId);
+            if (passwordInput.type === "password") {
+                passwordInput.type = "text";
+                eyeIcon.innerText = "🙈";
+            } else {
+                passwordInput.type = "password";
+                eyeIcon.innerText = "👁️";
+            }
+        }
+
+        function encrypt() {
+            const plaintext = document.getElementById('input').value;
+            const password = document.getElementById('password').value;
+            const encrypted = CryptoJS.AES.encrypt(plaintext, password).toString();
+            document.getElementById('output-text').innerText = encrypted;
+            document.getElementById('decrypt-error').innerText = ''; // Clear previous error message
+            adjustOutputHeight();
+            generateQRCode(encrypted);
+        }
+
+        function decrypt() {
+            const ciphertext = document.getElementById('input').value;
+            const password = document.getElementById('password').value;
+            const decryptErrorMsg = document.getElementById('decrypt-error');
+            const outputText = document.getElementById('output-text');
+            const qrContainer = document.getElementById('qr-code');
+            decryptErrorMsg.innerText = ''; // Clear previous error message
+            outputText.innerText = ''; // Clear output text before attempting decryption
+            qrContainer.innerHTML = ''; // Clear QR code before attempting decryption
+            try {
+                const decrypted = CryptoJS.AES.decrypt(ciphertext, password);
+                const plaintext = decrypted.toString(CryptoJS.enc.Utf8);
+                if (!plaintext) throw new Error(); // If plaintext is empty, consider it as an error
+                outputText.innerText = plaintext;
+                adjustOutputHeight();
+                generateQRCode(plaintext);
+            } catch (error) {
+                decryptErrorMsg.innerText = '密码错误';
+            }
+        }
+
+        function copyToClipboard(elementId) {
+            const textarea = document.createElement("textarea");
+            textarea.value = document.getElementById(elementId).value;
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                alert('已复制到剪贴板');
+            } catch (err) {
+                alert('复制失败，请手动复制');
+            }
+            document.body.removeChild(textarea);
+        }
+
+        function copyOutputToClipboard() {
+            const textarea = document.createElement("textarea");
+            textarea.value = document.getElementById('output-text').innerText;
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                alert('已复制到剪贴板');
+            } catch (err) {
+                alert('复制失败，请手动复制');
+            }
+            document.body.removeChild(textarea);
+        }
+
+        function generateQRCode(text) {
+            const qrContainer = document.getElementById('qr-code');
+            qrContainer.innerHTML = '';
+            new QRCode(qrContainer, {
+                text: text,
+                width: 256, // Increase size
+                height: 256 // Increase size
+            });
+        }
+
+        function adjustOutputHeight() {
+            const output = document.getElementById('output');
+            output.style.height = 'auto'; // Reset the height
+            output.style.height = output.scrollHeight + 'px'; // Set it to the scrollHeight
+        }
+
+        // Toggle password validation state
+        function togglePasswordValidation() {
+            passwordValidationEnabled = !passwordValidationEnabled; // Toggle validation flag
+            const confirmPasswordSection = document.getElementById('confirm-password-section');
+            const toggleButton = document.getElementById('toggle-validation-button');
+            
+            // Clear the confirm password field every time validation is toggled
+            document.getElementById('confirm-password').value = '';
+
+            if (passwordValidationEnabled) {
+                confirmPasswordSection.style.display = 'block';
+                toggleButton.innerText = '禁用密码验证';
+            } else {
+                confirmPasswordSection.style.display = 'none';
+                toggleButton.innerText = '启用密码验证';
+            }
+            checkPassword(); // Revalidate the password fields
+        }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h1>AES加密解密</h1>
+        <div class="input-container">
+            <div class="input-label">
+                <label for="input">原文/密文</label>
+                <button onclick="copyToClipboard('input')">复制</button>
+            </div>
+            <textarea id="input" placeholder="在此输入文本..."></textarea>
+        </div>
+        <div class="password-container">
+            <div class="password-label">
+                <label for="password">密码</label>
+                <button onclick="copyToClipboard('password')">复制</button>
+            </div>
+            <div style="position: relative;">
+                <input type="password" id="password" placeholder="在此输入密码..." maxlength="32" oninput="checkPassword();">
+                <span class="eye-icon" id="togglePassword" onclick="togglePasswordVisibility('password', 'togglePassword')">👁️</span>
+            </div>
+            <div id="confirm-password-section" style="display: block; position: relative;">
+                <div class="password-label">
+                    <label for="confirm-password">确认密码</label>
+                </div>
+                <input type="password" id="confirm-password" placeholder="再次输入密码..." maxlength="32" oninput="checkPassword();">
+                <span class="eye-icon" id="toggleConfirmPassword" onclick="togglePasswordVisibility('confirm-password', 'toggleConfirmPassword')">👁️</span>
+            </div>
+            <div id="password-error" class="error-message"></div>
+            <button id="toggle-validation-button" onclick="togglePasswordValidation()">禁用密码验证</button>
+        </div>
+        <div class="buttons">
+            <button onclick="encrypt()" disabled>加密</button>
+            <button onclick="decrypt()" disabled>解密</button>
+        </div>
+        <div class="output-container">
+            <div class="output-label">
+                <label for="output">输出</label>
+                <button class="copy-btn" onclick="copyOutputToClipboard()">复制</button>
+            </div>
+            <div id="output">
+                <div id="output-text"></div>
+            </div>
+            <div id="decrypt-error" class="error-message"></div>
+            <div id="qr-code"></div>
+        </div>
+    </div>
+</body>
+</html>
